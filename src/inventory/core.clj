@@ -5,9 +5,9 @@
   (atom
     {:caster
      {:spell-slots
-      {1 {:total     4
+      {1 {:total    4
           :quantity 4}
-       2 {:total     2
+       2 {:total    2
           :quantity 2}}
 
       :ingredients
@@ -29,14 +29,14 @@
                                     "Black Powder" {:quantity    10
                                                     :consumable? true}}
                       :implements  {"Crystal" {:quantity 1}}
-                      :spell-slot  2
+                      :spell-level 2
                       :effect      {:description "Blast of Fire WOW"}}
        "Fire Blasts" {:ingredients {"Bat Guano"    {:quantity    1
                                                     :consumable? true}
                                     "Black Powder" {:quantity    100000
                                                     :consumable? true}}
                       :implements  {"Crystal" {:quantity 1}}
-                      :spell-slot  2
+                      :spell-level 2
                       :effect      {:description "Blast of Fire WOW"}}}}}))
 
 
@@ -67,7 +67,7 @@
 
 (defn find-requirements
   "Check what the spell actually requires, then fetch only these details."
-  [{:keys [ingredients implements spell-slot]} caster]
+  [{:keys [ingredients implements]} caster]
   (-> {}
       (merge (material-requirements caster ingredients :ingredients))
       (merge (material-requirements caster implements :implements))
@@ -76,13 +76,23 @@
       sfitw
       ))
 
+(defn spell-slots
+  "Checks if there's a spell slot available"
+  [caster-inventory spell-requirement]
+  (let [caster-slots (:spell-slots caster-inventory)
+        spell-slot (:spell-level spell-requirement)]
+      (if-not (< 0 (:quantity (caster-slots spell-slot)))
+        false
+        (do (println "YAS")
+            true))))
+
 (defn cast-it [materials]
   (if (or (not materials)
           (some false? (flatten (vals materials))))
     false
     materials))
 
-(defn update-inventory! [materials]
+(defn update-inventory! [materials spell-slot]
   (if-not materials
     false
     (let [merged-materials
@@ -98,13 +108,19 @@
                             (if-let [material (k merged-materials)]
                               {k (merge v material)}
                               {k v}))
-                          caster)))))))
+                          caster))))))
+  (if-not spell-slot
+    false
+    (swap! inventory update-in
+           [:caster :spell-slots spell-slot :quantity]
+           dec)))
 
-(defn cast-spell [nom] ;; & {:keys [spell-slot]}
+(defn cast-spell [nom]                                      ;; & {:keys [spell-slot]}
   (let [caster (:caster @inventory)]
     (println "caster")
     (-> ((:spells caster) nom)                              ;; spells is a vector
         (find-requirements caster)
+        (spell-slots caster)
         cast-it
         update-inventory!
 
