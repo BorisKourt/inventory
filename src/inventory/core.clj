@@ -63,16 +63,18 @@
             spell-requirements)]
       {material requirements})))
 
-(defn sfitw [v] (if (empty? v) false v))
+(defn sfitw [v] (if (or (nil? v)
+                        (empty? v)) false v))
 
 (defn spell-slots
   "Checks if there's a spell slot available"
-  [caster-inventory spell-requirement]
-  (let [caster-slots (:spell-slots caster-inventory)]
-    (if-not (< 0 (:quantity (caster-slots spell-requirement)))
-      false
-      (do (println "YAS")
-          true))))
+  [caster-inventory spell-requirements]
+  (when spell-requirements
+    (let [caster-slots (:spell-slots caster-inventory)]
+      (if-not (< 0 (:quantity (caster-slots spell-requirements)))
+        false
+        (do (println "YAS")
+            spell-requirements)))))
 
 (defn find-requirements
   "Check what the spell actually requires, then fetch only these details."
@@ -120,11 +122,9 @@
     (-> ((:spells caster) nom)                              ;; spells is a vector
         (find-requirements caster)
         cast-it
-        update-inventory!
-
+        ;; update-inventory!
         ;; Cast The Spell
         ;; Swap the atom.
-
         )))
 
 (defn -main [& args]
