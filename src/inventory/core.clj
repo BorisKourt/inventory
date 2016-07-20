@@ -63,7 +63,7 @@
             spell-requirements)]
       {material requirements})))
 
-(defn sfitw [v] (if (or (nil? v)
+(defn value-unless-nil-or-empty [v] (if (or (nil? v)
                         (empty? v)) false v))
 
 (defn spell-slots
@@ -84,7 +84,7 @@
       (merge (material-requirements caster implements :implements))
       (merge (spell-slots caster spell-level))
       ;; Spell Slots
-      sfitw
+      value-unless-nil-or-empty
       ))
 
 (defn cast-it [requirements]
