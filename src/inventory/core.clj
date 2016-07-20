@@ -65,32 +65,31 @@
 
 (defn sfitw [v] (if (empty? v) false v))
 
+(defn spell-slots
+  "Checks if there's a spell slot available"
+  [caster-inventory spell-requirement]
+  (let [caster-slots (:spell-slots caster-inventory)]
+    (if-not (< 0 (:quantity (caster-slots spell-requirement)))
+      false
+      (do (println "YAS")
+          true))))
+
 (defn find-requirements
   "Check what the spell actually requires, then fetch only these details."
-  [{:keys [ingredients implements]} caster]
+  [{:keys [ingredients implements spell-level]} caster]
   (-> {}
       (merge (material-requirements caster ingredients :ingredients))
       (merge (material-requirements caster implements :implements))
-
+      (merge (spell-slots caster spell-level))
       ;; Spell Slots
       sfitw
       ))
 
-(defn spell-slots
-  "Checks if there's a spell slot available"
-  [caster-inventory spell-requirement]
-  (let [caster-slots (:spell-slots caster-inventory)
-        spell-slot (:spell-level spell-requirement)]
-      (if-not (< 0 (:quantity (caster-slots spell-slot)))
-        false
-        (do (println "YAS")
-            true))))
-
-(defn cast-it [materials]
-  (if (or (not materials)
-          (some false? (flatten (vals materials))))
+(defn cast-it [requirements]
+  (if (or (not requirements)
+          (some false? (flatten (vals requirements))))
     false
-    materials))
+    requirements))
 
 (defn update-inventory! [materials spell-slot]
   (if-not materials
@@ -120,7 +119,6 @@
     (println "caster")
     (-> ((:spells caster) nom)                              ;; spells is a vector
         (find-requirements caster)
-        (spell-slots caster)
         cast-it
         update-inventory!
 
