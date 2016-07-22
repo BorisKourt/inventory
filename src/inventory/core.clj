@@ -47,25 +47,27 @@
 (defn material-requirements [caster-inventory spell-requirements material]
   (when spell-requirements
     (let [requirements
-          (map
-            (fn [[n required]]
-              (if-let [have ((material caster-inventory) n)]
-                (if-not (>= (:quantity have)
-                            (:quantity required))
-                  false
-                  (if-not (:consumable? required)
-                    {n have}
-                    {n (update have
-                               :quantity
-                               (fn [quantity]
-                                 (- quantity (:quantity required))))}))
-                false))
-            spell-requirements)]
-      {material requirements})))
+          (apply merge (map
+                         (fn [[n required]]
+                           (if-let [have ((material caster-inventory) n)]
+                             (if-not (>= (:quantity have)
+                                         (:quantity required))
+                               false
+                               (if-not (:consumable? required)
+                                 {n have}
+                                 {n (update have
+                                            :quantity
+                                            (fn [quantity]
+                                              (- quantity (:quantity required))))}))
+                             false))
+                         spell-requirements))]
+      {material (merge (material caster-inventory) requirements)})))
 
 (defn value-unless-nil-or-empty [v] (if (or (nil? v)
-                        (empty? v)) false v))
+                                            (empty? v)) false v))
 
+;; if you don't need a spell-slot, just return the data.
+;; (if) around the let to check if it needs a requirement.
 (defn spell-slots
   "Checks if there's a spell slot available"
   [caster-inventory spell-requirements]
@@ -73,8 +75,7 @@
     (let [caster-slots (:spell-slots caster-inventory)]
       (if-not (< 0 (:quantity (caster-slots spell-requirements)))
         false
-        (do (println "YAS")
-            spell-requirements)))))
+        {:spell-slots (update-in caster-slots [spell-requirements :quantity] dec)}))))
 
 (defn find-requirements
   "Check what the spell actually requires, then fetch only these details."
@@ -83,9 +84,7 @@
       (merge (material-requirements caster ingredients :ingredients))
       (merge (material-requirements caster implements :implements))
       (merge (spell-slots caster spell-level))
-      ;; Spell Slots
-      value-unless-nil-or-empty
-      ))
+      value-unless-nil-or-empty))
 
 (defn cast-it [requirements]
   (if (or (not requirements)
@@ -93,36 +92,20 @@
     false
     requirements))
 
-(defn update-inventory! [materials spell-slot]
+(defn update-inventory! [materials]
   (if-not materials
     false
-    (let [merged-materials
-          (into {}
-                (map (fn [[k v]]
-                       {k (into {} v)})
-                     materials))]
-      (swap! inventory update-in                            ;; Update Function
-             [:caster]                                      ;;
-             (fn [caster]
-               (into {}
-                     (map (fn [[k v]]
-                            (if-let [material (k merged-materials)]
-                              {k (merge v material)}
-                              {k v}))
-                          caster))))))
-  (if-not spell-slot
-    false
-    (swap! inventory update-in
-           [:caster :spell-slots spell-slot :quantity]
-           dec)))
+    (swap! inventory
+           (fn [p-inventory]
+             (merge p-inventory
+                    {:caster (merge (:caster p-inventory) materials)})))))
 
 (defn cast-spell [nom]                                      ;; & {:keys [spell-slot]}
   (let [caster (:caster @inventory)]
-    (println "caster")
     (-> ((:spells caster) nom)                              ;; spells is a vector
         (find-requirements caster)
         cast-it
-        ;; update-inventory!
+        update-inventory!
         ;; Cast The Spell
         ;; Swap the atom.
         )))
